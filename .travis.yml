@@ -10,6 +10,9 @@ addons:
             - python-numpy
             - python-matplotlib
             - python-scipy
+            - openmpi-bin 
+            - openmpi-common 
+            - libopenmpi-dev
 install:
     - virtualenv --system-site-packages venv && source venv/bin/activate
     - pip install -e .

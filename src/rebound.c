@@ -81,7 +81,7 @@ void reb_step(struct reb_simulation* const r){
 
 #ifdef MPI
 	// Distribute particles and add newly received particles to tree.
-	communication_mpi_distribute_particles();
+	reb_mpi_distribute_particles(r);
 #endif // MPI
 
 	if (r->tree_root!=NULL && r->gravity==REB_GRAVITY_TREE){
@@ -89,10 +89,10 @@ void reb_step(struct reb_simulation* const r){
 		reb_tree_update_gravity_data(r); 
 #ifdef MPI
 		// Prepare essential tree (and particles close to the boundary needed for collisions) for distribution to other nodes.
-		reb_tree_prepare_essential_tree_for_gravity();
+		reb_tree_prepare_essential_tree_for_gravity(r);
 
 		// Transfer essential tree and particles needed for collisions.
-		communication_mpi_distribute_essential_tree_for_gravity();
+		reb_mpi_distribute_essential_tree_for_gravity(r);
 #endif // MPI
 	}
 
@@ -302,8 +302,8 @@ struct reb_simulation* reb_create_simulation(){
 
 #ifdef MPI
 	// Make sure domain can be decomposed into equal number of root boxes per node.
-	if ((root_n/mpi_num)*mpi_num != root_n){
-		if (mpi_id==0) fprintf(stderr,"ERROR: Number of root boxes (%d) not a multiple of mpi nodes (%d).\n",root_n,mpi_num);
+	if ((r->root_n/mpi_num)*mpi_num != r->root_n){
+		if (mpi_id==0) fprintf(stderr,"ERROR: Number of root boxes (%d) not a multiple of mpi nodes (%d).\n",r->root_n,mpi_num);
 		exit(-1);
 	}
 	printf("MPI-node: %d. Process id: %d.\n",mpi_id, getpid());

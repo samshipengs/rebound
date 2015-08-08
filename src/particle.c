@@ -61,6 +61,15 @@ static void reb_add_local(struct reb_simulation* const r, struct reb_particle pt
 	(r->N)++;
 }
 
+int reb_get_rootbox_for_particle(const struct reb_simulation* const r, struct reb_particle pt){
+	if (r->root_size==-1) return 0;
+	int i = ((int)floor((pt.x + r->boxsize.x/2.)/r->root_size)+r->root_nx)%r->root_nx;
+	int j = ((int)floor((pt.y + r->boxsize.y/2.)/r->root_size)+r->root_ny)%r->root_ny;
+	int k = ((int)floor((pt.z + r->boxsize.z/2.)/r->root_size)+r->root_nz)%r->root_nz;
+	int index = (k*r->root_ny+j)*r->root_nx+i;
+	return index;
+}
+
 void reb_add(struct reb_simulation* const r, struct reb_particle pt){
 	if (r->N_var){
 		reb_warning("Trying to add particle after calling megno_init().");
@@ -82,25 +91,16 @@ void reb_add(struct reb_simulation* const r, struct reb_particle pt){
 #endif // GRAVITY_GRAPE
 #ifdef MPI
 	int rootbox = reb_get_rootbox_for_particle(r, pt);
-	int root_n_per_node = root_n/mpi_num;
+	int root_n_per_node = r->root_n/mpi_num;
 	int proc_id = rootbox/root_n_per_node;
 	if (proc_id != mpi_id && r->N >= r->N_active){
 		// Add particle to array and send them to proc_id later. 
-		communication_mpi_add_particle_to_send_queue(pt,proc_id);
+		reb_mpi_add_particle_to_send_queue(r,pt,proc_id);
 		return;
 	}
 #endif // MPI
 	// Add particle to local partical array.
 	reb_add_local(r, pt);
-}
-
-int reb_get_rootbox_for_particle(const struct reb_simulation* const r, struct reb_particle pt){
-	if (r->root_size==-1) return 0;
-	int i = ((int)floor((pt.x + r->boxsize.x/2.)/r->root_size)+r->root_nx)%r->root_nx;
-	int j = ((int)floor((pt.y + r->boxsize.y/2.)/r->root_size)+r->root_ny)%r->root_ny;
-	int k = ((int)floor((pt.z + r->boxsize.z/2.)/r->root_size)+r->root_nz)%r->root_nz;
-	int index = (k*r->root_ny+j)*r->root_nx+i;
-	return index;
 }
 
 void reb_remove_all(struct reb_simulation* const r){

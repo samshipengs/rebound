@@ -39,10 +39,9 @@
 #include "rebound.h"
 #include "boundary.h"
 #include "tree.h"
-
 #ifdef MPI
-#error COLLISIONS_DIRECT not yet compatible with MPI
-#endif
+#include "communication_mpi.h"
+#endif // MPI
 
 static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const r, int* collisions_N, struct reb_ghostbox gb, struct reb_ghostbox gbunmod, int ri, double p1_r,  double* nearest_r2, struct reb_collision* collision_nearest, struct reb_treecell* c);
 static void reb_collision_resolve_hardsphere(struct reb_simulation* const r, struct reb_collision c);
@@ -118,13 +117,13 @@ void reb_collision_search(struct reb_simulation* const r){
 
 #ifdef MPI
 			// Distribute particles and add newly received particles to tree.
-			communication_mpi_distribute_particles();
+			reb_mpi_distribute_particles(r);
 			
 			// Prepare essential tree (and particles close to the boundary needed for collisions) for distribution to other nodes.
-			reb_tree_prepare_essential_tree_for_collisions();
+			reb_tree_prepare_essential_tree_for_collisions(r);
 
 			// Transfer essential tree and particles needed for collisions.
-			communication_mpi_distribute_essential_tree_for_collisions();
+			reb_mpi_distribute_essential_tree_for_collisions(r);
 #endif // MPI
 
 			// Loop over ghost boxes, but only the inner most ring.
@@ -218,7 +217,7 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
 		int condition 	= 1;
 #ifdef MPI
 		int isloc	= 1 ;
-		isloc = communication_mpi_rootbox_is_local(ri);
+		isloc = reb_mpi_rootbox_is_local(r,ri);
 		if (isloc==1){
 #endif // MPI
 			/**
@@ -239,7 +238,7 @@ static void reb_tree_get_nearest_neighbour_in_cell(struct reb_simulation* const 
 				p2 = particles[c->pt];
 #ifdef MPI
 			}else{
-				int root_n_per_node = root_n/mpi_num;
+				int root_n_per_node = r->root_n/mpi_num;
 				int proc_id = ri/root_n_per_node;
 				p2 = particles_recv[proc_id][c->pt];
 			}
@@ -305,13 +304,13 @@ static void reb_collision_resolve_hardsphere(struct reb_simulation* const r, str
 	struct reb_particle p1 = particles[c.p1];
 	struct reb_particle p2;
 #ifdef MPI
-	int isloc = communication_mpi_rootbox_is_local(c.ri);
+	int isloc = reb_mpi_rootbox_is_local(r,c.ri);
 	if (isloc==1){
 #endif // MPI
 		p2 = particles[c.p2];
 #ifdef MPI
 	}else{
-		int root_n_per_node = root_n/mpi_num;
+		int root_n_per_node = r->root_n/mpi_num;
 		int proc_id = c.ri/root_n_per_node;
 		p2 = particles_recv[proc_id][c.p2];
 	}
